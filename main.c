@@ -57,25 +57,27 @@ int findAmountOfInt(char *filename) // Function to find the amount of integers i
 }
 
 int num = 0;
-
+int count = 0;
 sem_t mutex;
-void *addFun(void *arg, char *dirname)
+void *addFun(void *arg, char *dirname, int loopAmount)
 {
+
     printf("Thread %d created\n", num);
     long tid = (long)arg;
-    int primeCount = 0;
     char *filename;
 
+    int primeCount = 0;
     sem_wait(&mutex); // lock critical region
 
     DIR *dirp2;
     struct dirent *entry2;
     dirp2 = opendir(dirname);
-    printf("Thread %d created\n", num);
     while ((entry2 = readdir(dirp2)) != NULL)
     {
+        count++;
         if (entry2->d_type == DT_REG)
         {
+
             filename = entry2->d_name;
             char path[100];
             strcpy(path, dirname);
@@ -92,12 +94,15 @@ void *addFun(void *arg, char *dirname)
                     primeCount++;
                 }
             }
-            printf("Thread %lx has found %d prime numbers in %s\n", tid, primeCount, filename);
-
             fclose(file);
+            printf("%d",count);
+            printf("Thread %lx has found %d prime numbers in %s\n", tid, primeCount, filename);
+            primeCount = 0;
         }
+        
     }
 
+        printf("Thread %d created\n", num);
     closedir(dirp2);
     sem_post(&mutex); // unlock critical region
     num++;
@@ -111,6 +116,7 @@ int main(int argc, char *argv[])
     printf("Number of threads: %d\n", numThreads);
     pthread_t threads[numThreads];
     int file_count = 0;
+    
     DIR *dirp;
     struct dirent *entry;
 
@@ -124,17 +130,20 @@ int main(int argc, char *argv[])
     }
     closedir(dirp);
 
+    int loopAmount = file_count / numThreads;
     printf("Number of files: %d\n", file_count);
 
-    // sem_init(&mutex, 0, numThreads);
+    sem_init(&mutex, 0, numThreads);
 
     for (int i = 0; i < numThreads; i++)
     {
-        pthread_create(&threads[i], NULL, addFun((void *)i, dirname), NULL);
+        pthread_create(&threads[i], NULL, addFun((void *)i, dirname, loopAmount), NULL);
     }
     for (int i = 0; i < numThreads; i++)
     {
         pthread_join(threads[i], NULL);
     }
-    // sem_destroy(&mutex);
+
+    sem_destroy(&mutex);
+    return 0;
 }
